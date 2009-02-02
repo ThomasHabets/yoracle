@@ -43,6 +43,8 @@ class YOracle:
                 return y
         except yubikey.decrypt.InvalidToken, e:
             raise self.ErrBase(e)
+        except:
+            raise self.ErrBase()
 
         raise self.ErrBase("other error")
         
@@ -118,6 +120,8 @@ class YOracleWebAuth:
             return "NOTICE %s" % (e.msg)
         except YOracle.ErrBase, e:
             print "Error: " + str(e) # FIXME: logfile
+            return "FAIL"
+        except:
             return "FAIL"
 
 class Index:
