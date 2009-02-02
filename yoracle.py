@@ -17,21 +17,28 @@ def dvorak2qwerty(s):
 class YOracle:
     class ErrBase(Exception):
         pass
+    def __init__(self, db):
+        self.db = db
     def lookupUserKey(self, user):
-        return sys.argv[2]
+        return self.db.select('yubikey',
+                              where="yubikeyid='%s'" % (user))[0]['aeskey']
 
     def decrypt(self, token):
-        userkey = self.lookupUserKey(token[:12])
-
+        print token,len(token)
         try:
+            userkey = self.lookupUserKey(token[:12])
             y = yubikey.decrypt.YubikeyToken(token, userkey)
             if y.crc_ok:
                 return y
         except yubikey.decrypt.InvalidToken, e:
             pass
+        except IndexError, e:
+            pass
 
         try:
-            y = yubikey.decrypt.YubikeyToken(dvorak2qwerty(token), userkey)
+            token = dvorak2qwerty(token)
+            userkey = self.lookupUserKey(token[:12])
+            y = yubikey.decrypt.YubikeyToken(token, userkey)
             if y.crc_ok:
                 return y
         except yubikey.decrypt.InvalidToken, e:
@@ -60,7 +67,7 @@ class YOracleWebAuth:
     def __init__(self):
         self.db = web.database(dbn='sqlite',
                                db='yoracle.sqlite')
-        self.yoracle = YOracle()
+        self.yoracle = YOracle(self.db)
     def getDbEntry(self, yid, password = None):
         pw = ""
         if password is not None:
@@ -75,16 +82,19 @@ class YOracleWebAuth:
     def GET(self):
         token = web.input()['token']
         password = None
+        print token, len(token)
         
         if len(token) > 44:
             print token
             password = token[:-44]
             token = token[-44:]
             password = sha.sha(password).hexdigest()
-            
         try:
             y = self.yoracle.decrypt(token)
-            dbentry = self.getDbEntry(token[:12], password=password)
+            try:
+                dbentry = self.getDbEntry(token[:12], password=password)
+            except:
+                raise YOracle.ErrBase("unknown user or bad session password")
             if y.counter < dbentry['counter']:
                 raise YOracle.ErrBase("FIXME: counter < old")
 
