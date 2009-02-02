@@ -1,0 +1,8 @@
+# Stand-alone Yubikey library written in Python.
+
+Please see http://code.google.com/p/yubikey-python/ for documentation.
+
+See COPYING file for code license.
+
+Authors:
+Rudolph Froger <rudolph.froger@gmail.com>

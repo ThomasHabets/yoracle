@@ -1,0 +1,37 @@
+{% extends 'main.html' %}
+{% load i18n %}
+
+{% block content %}
+<h1>{% trans 'Log in' %}</h1>
+<form action="" method="post">
+<ul>
+
+{% if form.non_field_errors %}
+    <li>{{ form.non_field_errors }}</li>
+{% endif %}
+
+{% if error %}
+    <li><ul class="errorlist"><li>{{ error }}</li></ul></li>
+{% endif %}
+
+{% if form.password %}
+<li>
+    {{ form.password.errors }}
+    <label>{{ form.password.label }}</label>:<br />
+    <input type="password" value="" name="password" id="id_password" />
+    {% if form.password.help_text %}<br /><span class="help_text">{{ form.password.help_text }}</span>{% endif %}
+</li>
+{% endif %}
+
+<li>
+    {{ form.token.errors }}
+    <label>{{ form.token.label }}</label>:<br />
+    <input type="text" value="" name="token" id="id_token" />
+    {% if form.token.help_text %}<br /><span class="help_text">{{ form.token.help_text }}</span>{% endif %}
+</li>
+
+<li><input type="submit" value="{% trans 'Log in' %}" /></li>
+</ul>
+</form>
+
+{% endblock %}
