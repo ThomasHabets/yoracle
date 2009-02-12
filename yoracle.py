@@ -17,59 +17,36 @@ def dvorak2qwerty(s):
 class YOracle:
     class ErrBase(Exception):
         pass
+    class ErrNOTICE(Exception):
+        def __init__(self, msg):
+            self.args = msg
     def __init__(self, db):
         self.db = db
     def lookupUserKey(self, user):
         return self.db.select('yubikey',
+                              what='aeskey',
                               where="yubikeyid='%s'" % (user))[0]['aeskey']
 
     def decrypt(self, token):
-        print token,len(token)
-        try:
-            userkey = self.lookupUserKey(token[:12])
-            y = yubikey.decrypt.YubikeyToken(token, userkey)
-            if y.crc_ok:
-                return y
-        except yubikey.decrypt.InvalidToken, e:
-            pass
-        except IndexError, e:
-            pass
+
+        def try_decrypt(token):
+            dbentry = self.getDbEntry(token[:12])
+            print token
+            try:
+                y = yubikey.decrypt.YubikeyToken(token, dbentry['aeskey'])
+            except Exception, e:
+                raise self.ErrBase('Yubikey decode error')
+                
+            if not y.crc_ok:
+                raise self.ErrBase('CRC error')
+            return y, dbentry
 
         try:
+            return try_decrypt(token)
+        except self.ErrBase, e:
             token = dvorak2qwerty(token)
-            userkey = self.lookupUserKey(token[:12])
-            y = yubikey.decrypt.YubikeyToken(token, userkey)
-            if y.crc_ok:
-                return y
-        except yubikey.decrypt.InvalidToken, e:
-            raise self.ErrBase(e)
-        except:
-            raise self.ErrBase()
+            return try_decrypt(token)
 
-        raise self.ErrBase("other error")
-        
-
-def cmdline():
-    yoracle = YOracle()
-    while True:
-        r = raw_input("OTP: ")
-        try:
-            y = yoracle.decrypt(r)
-        except:
-            print "Broken key"
-            continue
-        for k in [x for x in dir(y) if not re.match(r'_.*', x)]:
-            print k, getattr(y,k)
-
-
-class YOracleWebAuth:
-    class ErrNOTICE(Exception):
-        def __init__(self, msg):
-            self.msg = msg
-    def __init__(self):
-        self.db = web.database(dbn='sqlite',
-                               db='yoracle.sqlite')
-        self.yoracle = YOracle(self.db)
     def getDbEntry(self, yid, password = None):
         pw = ""
         if password is not None:
@@ -77,51 +54,81 @@ class YOracleWebAuth:
         try:
             return self.db.select('yubikey',
                                   where="yubikeyid='%s' %s" % (yid, pw))[0]
-        except IndexError, e:
-            yid = dvorak2qwerty(yid)
-            return self.db.select('yubikey',
-                                  where="yubikeyid='%s' %s" % (yid, pw))[0]
-    def GET(self):
-        token = web.input()['token']
+        except:
+            raise self.ErrBase('User <%s> not found in database' % (yid))
+
+    def verify(self, token):
         password = None
-        print token, len(token)
-        
         if len(token) > 44:
             print token
             password = token[:-44]
             token = token[-44:]
             password = sha.sha(password).hexdigest()
-        try:
-            y = self.yoracle.decrypt(token)
-            try:
-                dbentry = self.getDbEntry(token[:12], password=password)
-            except:
-                raise YOracle.ErrBase("unknown user or bad session password")
-            if y.counter < dbentry['counter']:
-                raise YOracle.ErrBase("FIXME: counter < old")
 
-            if (y.counter == dbentry['counter']
-                and y.counter_session <= dbentry['counter_session']):
-                raise YOracle.ErrBase("counter == old and "
-                                      "counter_session <= old")
+        y, dbentry = self.decrypt(token)
 
-            if dbentry['counter'] != y.counter and password is None:
-                raise self.ErrNOTICE('New session. Enter password before '
-                                     'pressing the Yubikey button')
+        if (password is not None and password != dbentry['password']):
+            raise YOracle.ErrBase("Bad password password")
+
+        if y.counter < dbentry['counter']:
+            raise YOracle.ErrBase("counter (%d) < old (%d)"
+                                  % (y.counter, dbentry['counter']))
+
+        if (y.counter == dbentry['counter']
+            and y.counter_session <= dbentry['counter_session']):
+            raise YOracle.ErrBase("counter == old == %d and "
+                                  "counter_session (%d) <= old (%d)"
+                                  % (y.counter, y.counter_session,
+                                     dbentry['counter_session']))
+
+        if y.secret_id != dbentry['secret_id']:
+            raise YOracle.ErrBase("wrong secret_id %s != %s"
+                                  % (y.secret_id, dbentry['secret_id']))
+        
+        if dbentry['counter'] != y.counter and password is None:
+            raise self.ErrNOTICE('New session. Enter password before '
+                                 'pressing the Yubikey button')
+
                 
-
-            self.db.update('yubikey',
-                           counter=y.counter,
-                           counter_session=y.counter_session,
-                           timestamp=y.timestamp,
-                           where="yubikeyid='%s'" %(y.public_id))
-            return "OK"
-        except self.ErrNOTICE, e:
-            return "NOTICE %s" % (e.msg)
+        self.db.update('yubikey',
+                       counter=y.counter,
+                       counter_session=y.counter_session,
+                       timestamp=y.timestamp,
+                       where="yubikeyid='%s'" %(y.public_id))
+        return y
+        
+def cmdline():
+    db = web.database(dbn='sqlite', db='yoracle.sqlite')
+    yoracle = YOracle(db)
+    while True:
+        r = raw_input("OTP: ")
+        try:
+            y = yoracle.verify(r)
+        except YOracle.ErrNOTICE, e:
+            print "NOTICE:",e.args
         except YOracle.ErrBase, e:
-            print "Error: " + str(e) # FIXME: logfile
-            return "FAIL"
-        except:
+            print "Broken key:",e
+        except Exception, e:
+            print "Other exception:", e
+            raise
+        else:
+            for k in [x for x in dir(y) if not re.match(r'_.*', x)]:
+                print k, getattr(y,k)
+
+
+class YOracleWebAuth:
+    def __init__(self):
+        self.db = web.database(dbn='sqlite',
+                               db='yoracle.sqlite')
+        self.yoracle = YOracle(self.db)
+    def GET(self):
+        token = web.input()['token']
+        try:
+            self.yoracle.verify(token)
+            return "OK"
+        except YOracle.ErrNOTICE, e:
+            return "NOTICE %s" % (e.args)
+        except YOracle.ErrBase, e:
             return "FAIL"
 
 class Index:
@@ -140,7 +147,7 @@ def webpy():
     app.run()
 
 if __name__ == '__main__':
-    if False:
+    if sys.argv[1] == '-i':
         cmdline()
     elif True:
         webpy()
