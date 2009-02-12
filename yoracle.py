@@ -22,11 +22,6 @@ class YOracle:
             m[dvorak[i]] = qwerty_us[i]
         return ''.join([m[x] for x in s])
 
-    def lookupUserKey(self, user):
-        return self.db.select('yubikey',
-                              what='aeskey',
-                              where="yubikeyid='%s'" % (user))[0]['aeskey']
-
     def decrypt(self, token):
         def try_decrypt(token):
             dbentry = self.getDbEntry(token[:12])

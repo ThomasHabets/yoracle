@@ -14,8 +14,10 @@ class YOracleWebAuth:
             self.yoracle.verify(token)
             return "OK"
         except YOracle.ErrNOTICE, e:
+            web.ctx.status = '401 Unauthorized'
             return "NOTICE %s" % (e.args)
         except YOracle.ErrBase, e:
+            web.ctx.status = '401 Unauthorized'
             return "FAIL"
 
 class Index:
