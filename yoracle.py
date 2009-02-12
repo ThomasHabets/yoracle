@@ -40,13 +40,11 @@ class YOracle:
             token = self.dvorak2qwerty(token)
             return try_decrypt(token)
 
-    def getDbEntry(self, yid, password = None):
-        pw = ""
-        if password is not None:
-            pw = " and password = '%s'" % (password)
+    def getDbEntry(self, yid):
         try:
             return self.db.select('yubikey',
-                                  where="yubikeyid='%s' %s" % (yid, pw))[0]
+                                  where="yubikeyid=$id",
+                                  vars={'id': yid})[0]
         except:
             raise self.ErrBase('User <%s> not found in database' % (yid))
 
@@ -78,6 +76,14 @@ class YOracle:
                                   % (y.counter, y.counter_session,
                                      dbentry['counter_session']))
 
+        if (y.counter == dbentry['counter']
+            and y.timestamp <= dbentry['timestamp']):
+            raise YOracle.ErrBase("counter == old == %d and "
+                                  "timestamp (%d) <= old (%d)"
+                                  % (y.counter,
+                                     y.timestamp,
+                                     dbentry['timestamp']))
+
         if y.secret_id != dbentry['secret_id']:
             raise YOracle.ErrBase("wrong secret_id %s != %s"
                                   % (y.secret_id, dbentry['secret_id']))
@@ -96,7 +102,11 @@ class YOracle:
 def cmdline(db):
     yoracle = YOracle(db)
     while True:
-        r = raw_input("OTP: ")
+        try:
+            r = raw_input("OTP: ")
+        except EOFError, e:
+            print
+            break
         try:
             y = yoracle.verify(r)
         except YOracle.ErrNOTICE, e:
