@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import web
 from yoracle import YOracle
 

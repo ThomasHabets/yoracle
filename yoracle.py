@@ -30,7 +30,6 @@ class YOracle:
     def decrypt(self, token):
         def try_decrypt(token):
             dbentry = self.getDbEntry(token[:12])
-            print token
             try:
                 y = yubikey.decrypt.YubikeyToken(token, dbentry['aeskey'])
             except Exception, e:
