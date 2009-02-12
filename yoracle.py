@@ -2,17 +2,7 @@
 
 import yubikey.decrypt
 import sys, re
-import web
 import sha
-
-
-def dvorak2qwerty(s):
-    dvorak = "`1234567890[]',.pyfgcrl/=aoeuidhtns-\\<;qjkxbmwvz"
-    qwerty_us = "`1234567890-=qwertyuiop[]asdfghjkl;'\\<zxcvbnm,./"
-    m = {}
-    for i in range(len(dvorak)):
-        m[dvorak[i]] = qwerty_us[i]
-    return ''.join([m[x] for x in s])
 
 class YOracle:
     class ErrBase(Exception):
@@ -20,15 +10,24 @@ class YOracle:
     class ErrNOTICE(Exception):
         def __init__(self, msg):
             self.args = msg
+
     def __init__(self, db):
         self.db = db
+
+    def dvorak2qwerty(self, s):
+        dvorak = "`1234567890[]',.pyfgcrl/=aoeuidhtns-\\<;qjkxbmwvz"
+        qwerty_us = "`1234567890-=qwertyuiop[]asdfghjkl;'\\<zxcvbnm,./"
+        m = {}
+        for i in range(len(dvorak)):
+            m[dvorak[i]] = qwerty_us[i]
+        return ''.join([m[x] for x in s])
+
     def lookupUserKey(self, user):
         return self.db.select('yubikey',
                               what='aeskey',
                               where="yubikeyid='%s'" % (user))[0]['aeskey']
 
     def decrypt(self, token):
-
         def try_decrypt(token):
             dbentry = self.getDbEntry(token[:12])
             print token
@@ -44,7 +43,7 @@ class YOracle:
         try:
             return try_decrypt(token)
         except self.ErrBase, e:
-            token = dvorak2qwerty(token)
+            token = self.dvorak2qwerty(token)
             return try_decrypt(token)
 
     def getDbEntry(self, yid, password = None):
@@ -64,6 +63,10 @@ class YOracle:
             password = token[:-44]
             token = token[-44:]
             password = sha.sha(password).hexdigest()
+
+        if len(token) != 44:
+            raise YOracle.ErrBase("Wrong token length %d" % (len(token)))
+            
 
         y, dbentry = self.decrypt(token)
 
@@ -88,7 +91,6 @@ class YOracle:
         if dbentry['counter'] != y.counter and password is None:
             raise self.ErrNOTICE('New session. Enter password before '
                                  'pressing the Yubikey button')
-
                 
         self.db.update('yubikey',
                        counter=y.counter,
@@ -97,8 +99,7 @@ class YOracle:
                        where="yubikeyid='%s'" %(y.public_id))
         return y
         
-def cmdline():
-    db = web.database(dbn='sqlite', db='yoracle.sqlite')
+def cmdline(db):
     yoracle = YOracle(db)
     while True:
         r = raw_input("OTP: ")
@@ -115,39 +116,6 @@ def cmdline():
             for k in [x for x in dir(y) if not re.match(r'_.*', x)]:
                 print k, getattr(y,k)
 
-
-class YOracleWebAuth:
-    def __init__(self):
-        self.db = web.database(dbn='sqlite',
-                               db='yoracle.sqlite')
-        self.yoracle = YOracle(self.db)
-    def GET(self):
-        token = web.input()['token']
-        try:
-            self.yoracle.verify(token)
-            return "OK"
-        except YOracle.ErrNOTICE, e:
-            return "NOTICE %s" % (e.args)
-        except YOracle.ErrBase, e:
-            return "FAIL"
-
-class Index:
-    def GET(self):
-        return """
-        <form method="get" action='/auth/0/'>
-        <input type='password' name='token' />
-        </form>
-        """
-def webpy():
-    urls = (
-        r'/', Index,
-        r'/auth/0/', YOracleWebAuth,
-    )
-    app = web.application(urls, globals())
-    app.run()
-
 if __name__ == '__main__':
-    if sys.argv[1] == '-i':
-        cmdline()
-    elif True:
-        webpy()
+    import web
+    cmdline(web.database(dbn='sqlite', db='yoracle.sqlite'))
