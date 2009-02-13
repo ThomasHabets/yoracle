@@ -117,7 +117,16 @@ class YOracle:
         t = self.db.transaction()
         try:
             ret = self.verify2(token)
-        except:
+        except self.ErrNOTICE, e:
+            try:
+                t.commit()
+            except Exception, e:
+                print "commit err:", e
+                t.rollback()
+                raise self.ErrTempErr()
+            else:
+                raise
+        except self.ErrBase, e:
             t.rollback()
             raise
         try:
@@ -177,20 +186,30 @@ class YOracle:
         if y.secret_id != dbentry['secret_id']:
             raise YOracle.ErrBase("wrong secret_id %s != %s"
                                   % (y.secret_id, dbentry['secret_id']))
-        
-        if dbentry['counter'] != y.counter and password is None:
-            raise self.ErrNOTICE('New session. Enter password before '
-                                 'pressing the Yubikey button')
 
+        #
+        passwordOk = False
+        if dbentry['counter'] == y.counter:
+            passwordOk = dbentry['passwordok']
+        if not passwordOk:
+            passwordOk = (dbentry['password'] == password)
+
+        # update database even if we really needed a password here
         try:
             self.db.update('yubikey',
                            counter=y.counter,
                            counter_session=y.counter_session,
                            timestamp=y.timestamp,
+                           passwordok=passwordOk,
                            where="yubikeyid=$yid",
                            vars={'yid': y.public_id})
         except Exception, e:
             raise self.ErrTempErr()
+
+        if not passwordOk:
+            raise self.ErrNOTICE('New session. Enter password before '
+                                 'pressing the Yubikey button')            
+
         return y
         
 def cmdline(db):

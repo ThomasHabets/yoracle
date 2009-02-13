@@ -3,6 +3,7 @@ create table yubikey(
         password varchar(40) not null,
         aeskey varchar(32) not null,
         counter int not null,
+	passwordok bool not null,
         counter_session int not null,
         secret_id char(12) not null,
         timestamp int not null,
