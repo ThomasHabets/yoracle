@@ -24,10 +24,12 @@ class YOracleWebAuth:
             return "OK"
         except YOracle.ErrNOTICE, e:
             if e.err is None:
-                web.ctx.status = '401 Unauthorized'
+                web.ctx.status = '409 Conflict'
+            print "Notice:",e
             return "NOTICE %s" % (e.args)
         except YOracle.ErrBase, e:
             web.ctx.status = '401 Unauthorized'
+            print "Fail:",e
             return "FAIL"
 
 class Index:
