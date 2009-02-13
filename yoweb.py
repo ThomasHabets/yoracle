@@ -4,17 +4,27 @@ import web
 from yoracle import YOracle
 
 class YOracleWebAuth:
+    """YOracleWebAuth
+
+    Webpy handler for authenticating.
+    """
     def __init__(self):
         self.db = web.database(dbn='sqlite',
                                db='yoracle.sqlite')
         self.yoracle = YOracle(self.db)
+        
     def GET(self):
+        """YOracleWebAuth.GET()
+
+        Handler for /auth/0/?token=%s
+        """
         token = web.input()['token']
         try:
             self.yoracle.verify(token)
             return "OK"
         except YOracle.ErrNOTICE, e:
-            web.ctx.status = '401 Unauthorized'
+            if e.err is None:
+                web.ctx.status = '401 Unauthorized'
             return "NOTICE %s" % (e.args)
         except YOracle.ErrBase, e:
             web.ctx.status = '401 Unauthorized'
@@ -22,11 +32,24 @@ class YOracleWebAuth:
 
 class Index:
     def GET(self):
-        return """
-        <form method="get" action='/auth/0/'>
-        <input type='password' name='token' />
-        </form>
+        """Index.GET()
+
+        Just present a form.
         """
+        return """
+        <html>
+          <head>
+            <title>YOracle web authentication</title>
+          </head>
+          <body>
+            <h1>YOracle web authentication</h1>
+            <form method='get' action='/auth/0/'>
+              <input type='password' name='token' />
+            </form>
+          </body>
+        </html>
+        """
+
 def webpy():
     urls = (
         r'/', Index,
