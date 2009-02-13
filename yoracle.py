@@ -200,12 +200,12 @@ class YOracle:
 
         if not passwordOk:
             if password is None:
-                raise self.ErrNOTICE('New session. Enter password before '
-                                     'pressing the Yubikey button.')
+                raise self.ErrNOTICE('Unauthenticated session. '
+                                     'Enter password before pressing '
+                                     'the Yubikey button.')
             else:
                 raise self.ErrNOTICE('Bad password.')
-                
-
+            
         return y
         
 def cmdline(db):
