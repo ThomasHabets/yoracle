@@ -114,29 +114,24 @@ class YOracle:
 
         Wrapper for YOracle.verify(). Should prolly be a decorator.
         """
+        def doCommit():
+            try:
+                t.commit()
+            except:
+                print "FIXME: commit fail"
+                t.rollback()
+                raise self.ErrTempErr()
+                
         t = self.db.transaction()
         try:
             ret = self.verify2(token)
-        except self.ErrNOTICE, e:
-            try:
-                t.commit()
-            except Exception, e:
-                print "commit err:", e
-                t.rollback()
-                raise self.ErrTempErr()
-            else:
-                raise
+            doCommit()
         except self.ErrBase, e:
-            t.rollback()
+            doCommit()
             raise
-        try:
-            t.commit()
-            return ret
-        except Exception, e:
-            t.rollback()
-            raise self.ErrTempErr()
-                                 
-    
+        return ret
+        
+
     def verify2(self, token):
         """YOracle.verify2(token)
 
@@ -204,8 +199,12 @@ class YOracle:
             raise self.ErrTempErr()
 
         if not passwordOk:
-            raise self.ErrNOTICE('New session. Enter password before '
-                                 'pressing the Yubikey button')            
+            if password is None:
+                raise self.ErrNOTICE('New session. Enter password before '
+                                     'pressing the Yubikey button.')
+            else:
+                raise self.ErrNOTICE('Bad password.')
+                
 
         return y
         
