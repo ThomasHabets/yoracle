@@ -158,9 +158,6 @@ class YOracle:
 
         y, dbentry = self.decrypt(token)
 
-        if (password is not None and password != dbentry['password']):
-            raise YOracle.ErrBase("Bad password")
-
         if y.counter < dbentry['counter']:
             raise YOracle.ErrBase("counter (%d) < old (%d)"
                                   % (y.counter, dbentry['counter']))
@@ -191,7 +188,7 @@ class YOracle:
         passwordOk = False
         if dbentry['counter'] == y.counter:
             passwordOk = dbentry['passwordok']
-        if not passwordOk:
+        if password is not None:
             passwordOk = (dbentry['password'] == password)
 
         # update database even if we really needed a password here
