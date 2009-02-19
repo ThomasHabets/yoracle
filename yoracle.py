@@ -239,6 +239,46 @@ def cmdline(db):
                               or x in ('aes_key',))]:
                 print "    %-20s %s" % (k, getattr(y,k))
 
+def pamauth(db):
+    """pamauth(db)
+
+    PAM auth
+
+    db:    web.database()-style (webpy.org) database connection object.
+    """
+    yoracle = YOracle(db)
+    try:
+        user = raw_input("")
+        token = raw_input("")
+
+        usermap = {
+            "gfrklhlghlrt": ('marvin', 'thompa'),
+            "bbjfbfhlbhvi": ('marvin', 'thompa'),
+            "bgfblndgglbj": ('marvin', 'thompa'),
+            }
+
+        keyid = token[-44:][:12]
+        if not usermap.has_key(keyid):
+            keyid = dvorak2qwerty(keyid)
+        if not usermap.has_key(keyid) or not user in usermap[keyid]:
+            return "FAIL"
+        try:
+            y = yoracle.verify(token)
+        except YOracle.ErrNOTICE, e:
+            return "NOTICE " + e.args
+        except YOracle.ErrBase, e:
+            #print "Invalid key:",e
+            return "FAIL"
+        else:
+            return "OK"
+    except:
+        raise
+    return "FAIL"
+
 if __name__ == '__main__':
     import web
-    cmdline(web.database(dbn='sqlite', db='yoracle.sqlite'))
+    if True:
+        web.config.debug = False
+        print pamauth(web.database(dbn='sqlite', db='yoracle.sqlite'))
+    else:
+        cmdline(web.database(dbn='sqlite', db='yoracle.sqlite'))
