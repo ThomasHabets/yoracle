@@ -29,7 +29,6 @@ class YOracleWebAuth:
             return "NOTICE %s" % (e.args)
         except YOracle.ErrBase, e:
             web.ctx.status = '401 Unauthorized'
-            print "Fail:",e
             return "FAIL"
 
 class Index:
