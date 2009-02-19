@@ -2,7 +2,9 @@
 
 import yubikey.decrypt
 import sys, re
+import os.path
 import sha
+import pwd
 
 def dvorak2qwerty(s):
     """dvorak2qwerty(s)
@@ -250,18 +252,20 @@ def pamauth(db):
     try:
         user = raw_input("")
         token = raw_input("")
-
-        usermap = {
-            "gfrklhlghlrt": ('marvin', 'thompa'),
-            "bbjfbfhlbhvi": ('marvin', 'thompa'),
-            "bgfblndgglbj": ('marvin', 'thompa'),
-            }
-
         keyid = token[-44:][:12]
-        if not usermap.has_key(keyid):
-            keyid = dvorak2qwerty(keyid)
-        if not usermap.has_key(keyid) or not user in usermap[keyid]:
-            return "FAIL"
+
+        try:
+            for line in open(os.path.join(pwd.getpwnam(user)[5],
+                                          ".yubikeys")):
+                key, url = line.split()
+                print key, keyid
+                if key == keyid or key == dvorak2qwerty(keyid):
+                    break
+            else:
+                raise "Bice"
+        except:
+            raise
+        
         try:
             y = yoracle.verify(token)
         except YOracle.ErrNOTICE, e:
