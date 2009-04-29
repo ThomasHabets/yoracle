@@ -1,0 +1,35 @@
+Intro
+=====
+Yoracle is an authenticator for yubikeys. It uses a sqlite database as
+backend.
+
+The first time a yubikey is used every time it's plugged in you have to
+prefix the yubikey token (what you get when you press the button) with a
+static password.
+
+
+Installing
+==========
+# generate generate the hash for the static key for a yubikey
+   echo -n myPass123  | sha1sum 
+   a230c761d781eaec2a3495d61be8301f42f80d1d  -
+# Create database:
+  sqlite3 yoracle.sqlite < schema.sql
+# Put your key in the database
+  sqlite3 yoracle.sqlite
+    insert into yubikey(yubikeyid, aeskey,password, counter,
+        counter_session, secret_id, timestamp, passwordok)
+        values('xxxaaaxxxaaa',
+                '12312312313212312312312312312312', -- AES key
+                'a230c761d781eaec2a3495d61be8301f42f80d1d', -- static key
+                0,0,
+                '000000000000', -- key id. 0 if coded using the windows tool
+                0, 0);
+# Configure for user (only needed for local authentication, not yoweb.py)
+   echo xxxaaaxxxaaa http://localhost/placeholder?token=%(token)s > ~/.yubikeys
+# Test the authentication
+  ./yoracle.py
+  myusernamehere
+  enter password and press yubikey here
+# Start a web server authenticator
+  ./yoweb.py 8080
