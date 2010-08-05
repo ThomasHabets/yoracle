@@ -3,8 +3,14 @@
 import yubikey.decrypt
 import sys, re
 import os.path
-import sha
 import pwd
+
+try:
+    import hashlib
+    sha1hash = hashlib.sha1
+except:
+    import sha
+    sha1hash = sha.sha
 
 KEY_DATABASE='yoracle.sqlite'
 
@@ -153,7 +159,7 @@ class YOracle:
         if len(token) > 44:
             password = token[:-44]
             token = token[-44:]
-            password = sha.sha(password).hexdigest()
+            password = sha1hash(password).hexdigest()
 
         y, dbentry = self.decrypt(token)
 
