@@ -6,6 +6,7 @@ import os.path
 import sha
 import pwd
 
+KEY_DATABASE='yoracle.sqlite'
 
 def dvorak2qwerty(s):
     """dvorak2qwerty(s)
@@ -115,7 +116,7 @@ class YOracle:
     def verify(self, token):
         """YOracle.verify(token)
 
-        Wrapper for YOracle.verify(). Should prolly be a decorator.
+        Wrapper for YOracle.verify2(). Should prolly be a decorator.
         """
         def doCommit():
             try:
@@ -282,8 +283,9 @@ def pamauth(db):
 if __name__ == '__main__':
     import web
     if True:
+        os.chdir(os.path.dirname(sys.argv[0]))
         web.config.debug = False
-        db = web.database(dbn='sqlite', db='yoracle.sqlite')
+        db = web.database(dbn='sqlite', db=KEY_DATABASE)
         print pamauth(db)
     else:
-        cmdline(web.database(dbn='sqlite', db='yoracle.sqlite'))
+        cmdline(web.database(dbn='sqlite', db=KEY_DATABASE))
