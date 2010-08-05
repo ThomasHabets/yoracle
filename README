@@ -3,33 +3,54 @@ Intro
 Yoracle is an authenticator for yubikeys. It uses a sqlite database as
 backend.
 
-The first time a yubikey is used every time it's plugged in you have to
-prefix the yubikey token (what you get when you press the button) with a
-static password.
+The first time a yubikey is used after it's plugged in you have to
+prefix the yubikey token (what you get when you press the button) with
+a static password. That password will not have to be used again until
+the Yubikey is unplugged and plugged back in.
+
+
+Prerequisites
+=============
+* Install web.py from webpy.org (http://webpy.org/download)
+   wget http://webpy.org/static/web.py-0.33.tar.gz
+   tar xvzf web.py-0.33.tar.gz
+   cd web.py-0.33
+   sudo python setup.py install
+
+  Also exists in Debian, but Debian Lenny has too old a version.
+* Yubikey with a 12 modhex-character id, and know its AES key.
+  In this example the key id is "hjhghliehbhu".
+    ykpersonalize \
+                  -a$(hexdump -n16 /dev/random -e '/1 "%02x"') \
+                  -ofixed=hjhghliehbhu
+  Modhex is Yubikeys encoding scheme where not all characters are
+  allowed. See http://www.yubico.com/developers/modhex/
 
 
 Installing
 ==========
-# generate generate the hash for the static key for a yubikey
+* Create key database:
+  sqlite3 yoracle.sqlite < schema.sql
+* generate generate the hash for the static key for a yubikey
    echo -n myPass123  | sha1sum 
    a230c761d781eaec2a3495d61be8301f42f80d1d  -
-# Create database:
-  sqlite3 yoracle.sqlite < schema.sql
-# Put your key in the database
+* Put your key in the database
   sqlite3 yoracle.sqlite
     insert into yubikey(yubikeyid, aeskey,password, counter,
         counter_session, secret_id, timestamp, passwordok)
-        values('xxxaaaxxxaaa',
-                '12312312313212312312312312312312', -- AES key
+        values('xxxaaaxxxaaa',                              -- key ID
+                '12312312313212312312312312312312',         -- AES key
                 'a230c761d781eaec2a3495d61be8301f42f80d1d', -- static key
                 0,0,
-                '000000000000', -- key id. 0 if coded using the windows tool
+                '000000000000', -- key uid. normally 000000000000
                 0, 0);
-# Configure for user (only needed for local authentication, not yoweb.py)
+* Configure for user (only needed for local authentication, not yoweb.py)
    echo xxxaaaxxxaaa http://localhost/placeholder?token=%(token)s > ~/.yubikeys
-# Test the authentication
+* Test the authentication
   ./yoracle.py
   myusernamehere
   enter password and press yubikey here
-# Start a web server authenticator
+
+  Should return "OK"
+* Start a web server authenticator
   ./yoweb.py 8080
