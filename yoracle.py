@@ -6,6 +6,7 @@ import os.path
 import sha
 import pwd
 
+
 def dvorak2qwerty(s):
     """dvorak2qwerty(s)
     
@@ -202,11 +203,11 @@ class YOracle:
 
         if not passwordOk:
             if password is None:
-                raise self.ErrNOTICE('Unauthenticated session. '
-                                     'Enter password before pressing '
-                                     'the Yubikey button.')
+                raise self.ErrNOTICE( ('Unauthenticated session. '
+                                     + 'Enter password before pressing '
+                                     + 'the Yubikey button.',))
             else:
-                raise self.ErrNOTICE('Bad password.')
+                raise self.ErrNOTICE( ('Bad password.',))
             
         return y
         
@@ -231,7 +232,7 @@ def cmdline(db):
         try:
             y = yoracle.verify(r)
         except YOracle.ErrNOTICE, e:
-            print "NOTICE:", e.err, e.args
+            print "NOTICE:", e.err, e.args[0]
         except YOracle.ErrBase, e:
             print "Invalid key:",e
         else:
@@ -268,7 +269,7 @@ def pamauth(db):
         try:
             y = yoracle.verify(token)
         except YOracle.ErrNOTICE, e:
-            return "NOTICE " + e.args
+            return "NOTICE " + e.args[0]
         except YOracle.ErrBase, e:
             #print "Invalid key:",e
             return "FAIL"
@@ -282,6 +283,7 @@ if __name__ == '__main__':
     import web
     if True:
         web.config.debug = False
-        print pamauth(web.database(dbn='sqlite', db='yoracle.sqlite'))
+        db = web.database(dbn='sqlite', db='yoracle.sqlite')
+        print pamauth(db)
     else:
         cmdline(web.database(dbn='sqlite', db='yoracle.sqlite'))
