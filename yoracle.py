@@ -25,7 +25,7 @@ def dvorak2qwerty(s):
     m = {}
     for i in range(len(dvorak)):
         m[dvorak[i]] = qwerty_us[i]
-    return ''.join([m[x] for x in s])
+    return ''.join([m.get(x, x) for x in s])
 
 def identitymapping(s):
     """identitymapping(s)
@@ -269,9 +269,11 @@ def pamauth(db):
                 if key == keyid or key == dvorak2qwerty(keyid):
                     break
             else:
-                raise "Bice"
+                # no key matched
+                return "FAIL"
         except:
-            raise
+            # user or their ~/.yubikeys doesn't exist
+            return "FAIL"
         
         try:
             y = yoracle.verify(token)
